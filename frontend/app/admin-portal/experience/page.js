@@ -139,6 +139,7 @@ export default function AdminExperience() {
   // Modal & Dialog state
   const [modal, setModal] = useState({ open: false, mode: 'create', data: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, target: null });
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Form states
   const [form, setForm] = useState({
@@ -186,6 +187,7 @@ export default function AdminExperience() {
       order: experienceList.length + 1,
     });
     setAchievements(['']);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'create', data: null });
   };
 
@@ -202,6 +204,7 @@ export default function AdminExperience() {
       order: exp.order || 0,
     });
     setAchievements(Array.isArray(exp.achievements) && exp.achievements.length > 0 ? [...exp.achievements] : ['']);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'edit', data: exp });
   };
 
@@ -224,7 +227,8 @@ export default function AdminExperience() {
     e.preventDefault();
     const isEdit = modal.mode === 'edit';
     const url = isEdit ? `/api/admin/experience/${modal.data.id}/` : '/api/admin/experience/';
-    const method = isEdit ? 'put' : 'post';
+    const method = isEdit ? 'patch' : 'post';
+    setErrorMsg(null);
 
     const techArr = form.technologies
       .split(',')
@@ -243,9 +247,16 @@ export default function AdminExperience() {
       if (res.ok) {
         setModal({ open: false, mode: 'create', data: null });
         loadExperience();
+      } else {
+        const errData = await res.json();
+        const msg = Object.entries(errData)
+          .map(([f, msgs]) => `${f}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join(' | ');
+        setErrorMsg(msg);
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('VCS / network connection failed.');
     }
   };
 
@@ -296,6 +307,11 @@ export default function AdminExperience() {
             <h3 style={{ ...styles.title, marginBottom: '20px' }}>
               {modal.mode === 'edit' ? 'Edit Experience' : 'Create Experience'}
             </h3>
+            {errorMsg && (
+              <div style={{ color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', padding: '10px', backgroundColor: '#ef444411', border: '1px solid #ef4444', borderRadius: '4px', marginBottom: '20px' }}>
+                [!] ERROR: {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <FormField label="Role / Job Title">
                 <input

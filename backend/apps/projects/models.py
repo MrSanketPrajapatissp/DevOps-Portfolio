@@ -10,7 +10,7 @@ class Project(models.Model):
     ]
 
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
     description = models.TextField()
     tech_stack = models.JSONField(default=list)
     github_url = models.URLField(blank=True)

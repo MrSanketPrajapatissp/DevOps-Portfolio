@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Terminal, Cpu, AlertCircle, Layers, CheckCircle, Sun, Moon } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : 'http://localhost:8000';
 
 export default function ShowcaseDetailPage({ params }) {
   const router = useRouter();
@@ -41,14 +41,28 @@ export default function ShowcaseDetailPage({ params }) {
       }
     }
     fetchShowcase();
+
+    const interval = setInterval(fetchShowcase, 10000);
+
+    const channel = new BroadcastChannel('portfolio_sync');
+    channel.onmessage = (e) => {
+      if (e.data === 'sync_data') {
+        fetchShowcase();
+      }
+    };
+
+    return () => {
+      clearInterval(interval);
+      channel.close();
+    };
   }, [params.slug]);
 
   if (loading) {
     return (
       <div className="loading-screen">
         <div className="loading-terminal">
-          <Terminal size={32} style={{ color: '#00d4ff' }} />
-          <p style={{ fontFamily: "'JetBrains Mono', monospace", color: '#10b981', marginTop: 16 }}>
+          <Terminal size={32} style={{ color: 'var(--accent-cyan)' }} />
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--accent-green)', marginTop: 16 }}>
             RETRIEVING ARCHITECTURE MATRIX...
           </p>
         </div>
@@ -81,7 +95,7 @@ export default function ShowcaseDetailPage({ params }) {
             <button onClick={toggleTheme} className="status-bar-link" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }} aria-label="Toggle theme">
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#94a3b8' }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'var(--text-secondary)' }}>
               SHOWCASE_ID: {showcase.slug?.toUpperCase()}
             </span>
           </div>
@@ -89,17 +103,17 @@ export default function ShowcaseDetailPage({ params }) {
 
         <div className="content-scroll" style={{ padding: '80px 40px 40px' }}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className="showcase-detail-header" style={{ marginBottom: 32, borderBottom: '1px solid #1e3a5f', paddingBottom: 24 }}>
+            <div className="showcase-detail-header" style={{ marginBottom: 32, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <Cpu size={16} style={{ color: '#8b5cf6' }} />
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#8b5cf6', fontSize: 13 }}>
+                <Cpu size={16} style={{ color: 'var(--accent-purple)' }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--accent-purple)', fontSize: 13 }}>
                   ARCHITECTURE // SPECIFICATION_SHEET
                 </span>
               </div>
-              <h1 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 32, color: '#e2e8f0', margin: '0 0 16px 0' }}>
+              <h1 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 32, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>
                 {showcase.title}
               </h1>
-              <p style={{ color: '#94a3b8', fontSize: 16, lineHeight: 1.7, maxWidth: 800, margin: '0 0 24px 0' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.7, maxWidth: 800, margin: '0 0 24px 0' }}>
                 {showcase.description}
               </p>
 

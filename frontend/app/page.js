@@ -2,11 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Github, Linkedin, Twitter, Mail, ExternalLink, ChevronDown, ChevronRight, Terminal, Activity, Shield, Cloud, Code, Box, GitBranch, Settings, Clock, MapPin, Send, CheckCircle, Award, Briefcase, Server, ArrowRight, Menu, X, Sun, Moon } from 'lucide-react';
+import { Github, Linkedin, Mail, ExternalLink, ChevronDown, ChevronRight, Terminal, Activity, Shield, Cloud, Code, Box, GitBranch, Settings, Clock, MapPin, Send, CheckCircle, Award, Briefcase, Server, ArrowRight, Menu, X, Sun, Moon, FileText } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Custom X (formerly Twitter) logo icon
+function XTwitterIcon({ size = 24, ...props }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
-const iconMap = { github: Github, linkedin: Linkedin, twitter: Twitter, mail: Mail };
+const API = process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : 'http://localhost:8000';
+
+const iconMap = { github: Github, linkedin: Linkedin, twitter: XTwitterIcon, mail: Mail };
 const categoryIcons = { cloud: Cloud, code: Code, box: Box, 'git-branch': GitBranch, activity: Activity, terminal: Terminal, shield: Shield };
 
 function getStatusColor(s) {
@@ -44,12 +53,12 @@ function TerminalBoot({ onComplete }) {
     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, lineHeight: 1.8 }}>
       {lines.map((line, i) => (
         <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}
-          style={{ color: (line?.includes('[OK]') || line?.includes('ONLINE')) ? '#10b981' : '#00d4ff' }}>
+          style={{ color: (line?.includes('[OK]') || line?.includes('ONLINE')) ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
           {line}
         </motion.div>
       ))}
       {lines.length < BOOT_LINES.length && (
-        <span style={{ color: '#10b981' }} className="terminal-cursor">▌</span>
+        <span style={{ color: 'var(--accent-green)' }} className="terminal-cursor">▌</span>
       )}
     </div>
   );
@@ -67,23 +76,41 @@ function ParticleField() {
     const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
     resize();
     window.addEventListener('resize', resize);
-    for (let i = 0; i < 50; i++) {
-      particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, r: Math.random() * 2 + 1 });
+
+    // Dynamic counts and boundaries to avoid mobile processor bottlenecks
+    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth <= 1024;
+    const count = isMobileOrTablet ? 16 : 45;
+    const maxDist = isMobileOrTablet ? 80 : 120;
+    const velocityScale = isMobileOrTablet ? 0.35 : 0.5;
+
+    for (let i = 0; i < count; i++) {
+      particles.push({ 
+        x: Math.random() * canvas.width, 
+        y: Math.random() * canvas.height, 
+        vx: (Math.random() - 0.5) * velocityScale, 
+        vy: (Math.random() - 0.5) * velocityScale, 
+        r: Math.random() * 2 + 1 
+      });
     }
+
     function draw() {
+      const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+      const pColor = isLight ? 'rgba(2, 132, 199, 0.45)' : 'rgba(0, 212, 255, 0.3)';
+      const lColor = isLight ? 'rgba(2, 132, 199, ' : 'rgba(0, 212, 255, ';
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       particles.forEach((p, i) => {
         p.x += p.vx; p.y += p.vy;
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,212,255,0.3)'; ctx.fill();
+        ctx.fillStyle = pColor; ctx.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const dx = p.x - particles[j].x, dy = p.y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
+          if (dist < maxDist) {
             ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(0,212,255,${0.1 * (1 - dist / 120)})`; ctx.stroke();
+            ctx.strokeStyle = `${lColor}${0.18 * (1 - dist / maxDist)})`; ctx.stroke();
           }
         }
       });
@@ -119,6 +146,7 @@ const NAV_ITEMS = [
   { id: 'certifications', label: 'Certifications', icon: Award },
   { id: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { id: 'architecture', label: 'Architecture', icon: Cloud },
+  { id: 'resume', label: 'Resume', icon: FileText },
   { id: 'contact', label: 'Contact', icon: Send },
 ];
 
@@ -126,7 +154,9 @@ function Sidebar({ activeSection, socialLinks, isSidebarOpen, setIsSidebarOpen, 
   return (
     <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon">OP</div>
+        <div className="sidebar-brand-icon">
+          <Terminal size={18} />
+        </div>
         <div>
           <div className="sidebar-brand-text">{operatorName?.toUpperCase() || 'ALEX CHEN'}</div>
           <div className="sidebar-brand-version">CONTROL PLANE v1.0</div>
@@ -205,11 +235,11 @@ function HeroSection({ hero, summary }) {
                 className="hero-readout">
                 <div className="hero-readout-item">
                   <span className="hero-readout-key">operator</span>
-                  <span className="hero-readout-value" style={{ fontSize: '18px', fontWeight: 'bold', color: '#00d4ff' }}>{hero.name}</span>
+                  <span className="hero-readout-value" style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent-cyan)' }}>{hero.name}</span>
                 </div>
                 <div className="hero-readout-item">
                   <span className="hero-readout-key">role</span>
-                  <span className="hero-readout-value" style={{ fontWeight: '600', color: '#e2e8f0' }}>{hero.title}</span>
+                  <span className="hero-readout-value" style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{hero.title}</span>
                 </div>
                 <div className="hero-readout-item">
                   <span className="hero-readout-key">status</span>
@@ -233,6 +263,14 @@ function HeroSection({ hero, summary }) {
           <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}
             className="hero-tagline">{hero.tagline}</motion.p>
         )}
+        {bootDone && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}
+            style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            <a href="#resume" className="deployment-detail-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', color: 'var(--accent-cyan)', borderColor: 'rgba(0, 212, 255, 0.3)', textShadow: 'none' }}>
+              <FileText size={12} /> VIEW_RESUME_CV.sh
+            </a>
+          </motion.div>
+        )}
       </div>
       <div className="hero-particle-side">
         <div className="particle-container">
@@ -243,7 +281,7 @@ function HeroSection({ hero, summary }) {
         <ScrollReveal delay={0.2}>
           <div style={{ gridColumn: 'span 2', marginTop: '32px' }} className="summary-panel">
             <h3 className="section-label">professional summary</h3>
-            <p className="summary-text" style={{ fontSize: '15px', color: '#94a3b8', lineHeight: '1.7', background: 'rgba(16, 34, 64, 0.2)', padding: '20px', borderRadius: '8px', border: '1px solid #1e3a5f' }}>{summary.content}</p>
+            <p className="summary-text summary-box" style={{ fontSize: '15px', lineHeight: '1.7', padding: '20px', borderRadius: '8px' }}>{summary.content}</p>
           </div>
         </ScrollReveal>
       )}
@@ -257,7 +295,7 @@ function SkillsSection({ categories }) {
     <section id="skills" className="section skills-section">
       <h2 className="section-title"><Activity size={20} /> SKILLS MATRIX</h2>
       {!categories?.length ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: '#475569', border: '1px dashed #1e3a5f', borderRadius: '8px' }}>
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-muted)', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
           &gt; NO SKILLS CATEGORIES RECORDED IN DATABASE.
         </div>
       ) : (
@@ -292,7 +330,7 @@ function ProjectsSection({ projects }) {
     <section id="deployments" className="section">
       <h2 className="section-title"><Server size={20} /> DEPLOYMENT LOG</h2>
       {!projects?.length ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: '#475569', border: '1px dashed #1e3a5f', borderRadius: '8px' }}>
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-muted)', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
           &gt; NO DEPLOYMENTS REPORTED IN DATABASE.
         </div>
       ) : (
@@ -360,7 +398,7 @@ function CertificationsSection({ certifications }) {
     <section id="certifications" className="section">
       <h2 className="section-title"><Award size={20} /> CREDENTIALS REGISTRY</h2>
       {!certifications?.length ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: '#475569', border: '1px dashed #1e3a5f', borderRadius: '8px' }}>
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-muted)', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
           &gt; NO CREDENTIALS UPLOADED TO REGISTRY.
         </div>
       ) : (
@@ -405,7 +443,7 @@ function ExperienceSection({ experience }) {
     <section id="pipeline" className="section">
       <h2 className="section-title"><GitBranch size={20} /> CAREER PIPELINE</h2>
       {!experience?.length ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: '#475569', border: '1px dashed #1e3a5f', borderRadius: '8px' }}>
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-muted)', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
           &gt; NO PIPELINE STAGES IN INITIALIZED STATE.
         </div>
       ) : (
@@ -439,8 +477,8 @@ function ExperienceSection({ experience }) {
           {experience[active] && (
             <AnimatePresence mode="wait">
               <motion.div key={active} className="pipeline-detail" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-                <h3 style={{ fontFamily: "'JetBrains Mono', monospace", color: '#00d4ff', fontSize: '18px', marginBottom: '4px' }}>{experience[active]?.role}</h3>
-                <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '16px', fontFamily: "'JetBrains Mono', monospace" }}>{experience[active]?.company} {experience[active]?.company_url && <a href={experience[active].company_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}><ExternalLink size={12} style={{ display: 'inline' }} /></a>}</p>
+                <h3 style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--accent-cyan)', fontSize: '18px', marginBottom: '4px' }}>{experience[active]?.role}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px', fontFamily: "'JetBrains Mono', monospace" }}>{experience[active]?.company} {experience[active]?.company_url && <a href={experience[active].company_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}><ExternalLink size={12} style={{ display: 'inline' }} /></a>}</p>
                 
                 <div className="pipeline-detail-section">
                   <div className="pipeline-detail-label">Scope of Operations</div>
@@ -479,7 +517,7 @@ function ShowcasesSection({ showcases }) {
     <section id="architecture" className="section">
       <h2 className="section-title"><Cloud size={20} /> ARCHITECTURE BRIEFS</h2>
       {!showcases?.length ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: '#475569', border: '1px dashed #1e3a5f', borderRadius: '8px' }}>
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-muted)', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
           &gt; NO SYSTEM ARCHITECTURE SPECS FILED.
         </div>
       ) : (
@@ -506,6 +544,33 @@ function ShowcasesSection({ showcases }) {
 }
 
 // ─── CONTACT SECTION ───────────────────────────────────────
+// ─── RESUME SECTION ─────────────────────────────────────────
+function ResumeSection({ resume }) {
+  if (!resume || !resume.file) return null;
+  const resumeUrl = resume.file.startsWith('http') ? resume.file : `${API}${resume.file}`;
+
+  return (
+    <section id="resume" className="section">
+      <h2 className="section-title"><FileText size={20} /> SPECIFICATION_CV</h2>
+      <div className="contact-terminal">
+        <div className="terminal-header">
+          <span className="terminal-dot red" />
+          <span className="terminal-dot amber" />
+          <span className="terminal-dot green" />
+          <span className="terminal-title">resume_viewer.sh</span>
+        </div>
+        <div style={{ width: '100%', height: '85vh', borderTop: '1px solid var(--border-subtle)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+          <iframe 
+            src={`${resumeUrl}#toolbar=0`} 
+            style={{ width: '100%', height: '100%', border: 'none' }} 
+            title="Resume PDF" 
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ContactSection() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [status, setStatus] = useState(null);
@@ -594,18 +659,33 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchAll() {
       try {
-        const endpoints = ['hero', 'summary', 'skill-categories', 'projects', 'certifications', 'experience', 'showcases', 'social-links'];
+        const endpoints = ['hero', 'summary', 'skill-categories', 'projects', 'certifications', 'experience', 'showcases', 'social-links', 'resume'];
         const responses = await Promise.all(endpoints.map(e => fetch(`${API}/api/${e}/`).then(r => r.ok ? r.json() : null).catch(() => null)));
         setData({
           hero: responses[0], summary: responses[1],
           categories: responses[2], projects: responses[3],
           certifications: responses[4], experience: responses[5],
           showcases: responses[6], socialLinks: responses[7],
+          resume: responses[8],
         });
       } catch (err) { console.error('Fetch error:', err); }
       setLoading(false);
     }
     fetchAll();
+
+    const interval = setInterval(fetchAll, 10000);
+
+    const channel = new BroadcastChannel('portfolio_sync');
+    channel.onmessage = (e) => {
+      if (e.data === 'sync_data') {
+        fetchAll();
+      }
+    };
+
+    return () => {
+      clearInterval(interval);
+      channel.close();
+    };
   }, []);
 
   // Scroll spy
@@ -623,8 +703,8 @@ export default function HomePage() {
     return (
       <div className="loading-screen">
         <div className="loading-terminal">
-          <Terminal size={32} style={{ color: '#00d4ff' }} />
-          <p style={{ fontFamily: "'JetBrains Mono', monospace", color: '#10b981', marginTop: 16 }}>
+          <Terminal size={32} style={{ color: 'var(--accent-cyan)' }} />
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--accent-green)', marginTop: 16 }}>
             LOADING CONTROL PLANE...
           </p>
         </div>
@@ -649,9 +729,9 @@ export default function HomePage() {
           <CertificationsSection certifications={data.certifications} />
           <ExperienceSection experience={data.experience} />
           <ShowcasesSection showcases={data.showcases} />
+          <ResumeSection resume={data.resume} />
           <ContactSection />
           <footer className="footer">
-            <p>CONTROL PLANE v1.0 — Built with Django + Next.js</p>
           </footer>
         </div>
       </main>

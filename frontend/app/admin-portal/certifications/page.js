@@ -107,6 +107,7 @@ export default function AdminCertifications() {
   // Modal & Dialog state
   const [modal, setModal] = useState({ open: false, mode: 'create', data: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, target: null });
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -152,6 +153,7 @@ export default function AdminCertifications() {
       order: certs.length + 1,
     });
     setBadgeImage(null);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'create', data: null });
   };
 
@@ -167,6 +169,7 @@ export default function AdminCertifications() {
       order: cert.order || 0,
     });
     setBadgeImage(null);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'edit', data: cert });
   };
 
@@ -174,7 +177,8 @@ export default function AdminCertifications() {
     e.preventDefault();
     const isEdit = modal.mode === 'edit';
     const url = isEdit ? `/api/admin/certifications/${modal.data.id}/` : '/api/admin/certifications/';
-    const method = isEdit ? 'put' : 'post';
+    const method = isEdit ? 'patch' : 'post';
+    setErrorMsg(null);
 
     try {
       const formData = new FormData();
@@ -191,9 +195,16 @@ export default function AdminCertifications() {
       if (res.ok) {
         setModal({ open: false, mode: 'create', data: null });
         loadCerts();
+      } else {
+        const errData = await res.json();
+        const msg = Object.entries(errData)
+          .map(([f, msgs]) => `${f}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join(' | ');
+        setErrorMsg(msg);
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('VCS / network connection failed.');
     }
   };
 
@@ -244,6 +255,11 @@ export default function AdminCertifications() {
             <h3 style={{ ...styles.title, marginBottom: '20px' }}>
               {modal.mode === 'edit' ? 'Edit Certification' : 'Create Certification'}
             </h3>
+            {errorMsg && (
+              <div style={{ color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', padding: '10px', backgroundColor: '#ef444411', border: '1px solid #ef4444', borderRadius: '4px', marginBottom: '20px' }}>
+                [!] ERROR: {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <FormField label="Certification Name">
                 <input

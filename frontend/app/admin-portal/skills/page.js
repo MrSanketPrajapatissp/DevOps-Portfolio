@@ -129,6 +129,7 @@ export default function AdminSkills() {
   const [categoryModal, setCategoryModal] = useState({ open: false, mode: 'create', data: null });
   const [skillModal, setSkillModal] = useState({ open: false, mode: 'create', data: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: 'category', target: null });
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', icon: '', order: 0 });
@@ -157,11 +158,13 @@ export default function AdminSkills() {
   // Category CRUD
   const openCategoryCreate = () => {
     setCategoryForm({ name: '', icon: '', order: categories.length + 1 });
+    setErrorMsg(null);
     setCategoryModal({ open: true, mode: 'create', data: null });
   };
 
   const openCategoryEdit = (cat) => {
     setCategoryForm({ name: cat.name, icon: cat.icon || '', order: cat.order });
+    setErrorMsg(null);
     setCategoryModal({ open: true, mode: 'edit', data: cat });
   };
 
@@ -169,16 +172,24 @@ export default function AdminSkills() {
     e.preventDefault();
     const isEdit = categoryModal.mode === 'edit';
     const url = isEdit ? `/api/admin/skill-categories/${categoryModal.data.id}/` : '/api/admin/skill-categories/';
-    const method = isEdit ? 'put' : 'post';
+    const method = isEdit ? 'patch' : 'post';
+    setErrorMsg(null);
 
     try {
       const res = await api[method](url, categoryForm);
       if (res.ok) {
         setCategoryModal({ open: false, mode: 'create', data: null });
         loadData();
+      } else {
+        const errData = await res.json();
+        const msg = Object.entries(errData)
+          .map(([f, msgs]) => `${f}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join(' | ');
+        setErrorMsg(msg);
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('VCS / network connection failed.');
     }
   };
 
@@ -190,6 +201,7 @@ export default function AdminSkills() {
       proficiency: 80,
       order: skills.length + 1,
     });
+    setErrorMsg(null);
     setSkillModal({ open: true, mode: 'create', data: null });
   };
 
@@ -200,6 +212,7 @@ export default function AdminSkills() {
       proficiency: skill.proficiency,
       order: skill.order,
     });
+    setErrorMsg(null);
     setSkillModal({ open: true, mode: 'edit', data: skill });
   };
 
@@ -207,16 +220,24 @@ export default function AdminSkills() {
     e.preventDefault();
     const isEdit = skillModal.mode === 'edit';
     const url = isEdit ? `/api/admin/skills/${skillModal.data.id}/` : '/api/admin/skills/';
-    const method = isEdit ? 'put' : 'post';
+    const method = isEdit ? 'patch' : 'post';
+    setErrorMsg(null);
 
     try {
       const res = await api[method](url, skillForm);
       if (res.ok) {
         setSkillModal({ open: false, mode: 'create', data: null });
         loadData();
+      } else {
+        const errData = await res.json();
+        const msg = Object.entries(errData)
+          .map(([f, msgs]) => `${f}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join(' | ');
+        setErrorMsg(msg);
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('VCS / network connection failed.');
     }
   };
 
@@ -301,6 +322,11 @@ export default function AdminSkills() {
             <h3 style={{ ...styles.title, marginBottom: '20px' }}>
               {categoryModal.mode === 'edit' ? 'Edit Category' : 'Create Category'}
             </h3>
+            {errorMsg && (
+              <div style={{ color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', padding: '10px', backgroundColor: '#ef444411', border: '1px solid #ef4444', borderRadius: '4px', marginBottom: '20px' }}>
+                [!] ERROR: {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleCategorySave}>
               <FormField label="Category Name">
                 <input
@@ -310,7 +336,7 @@ export default function AdminSkills() {
                   required
                 />
               </FormField>
-              <FormField label="Icon (e.target.value tag e.g. cloud, terminal, code)">
+              <FormField label="Icon (icon tag e.g. cloud, terminal, code)">
                 <input
                   style={styles.input}
                   value={categoryForm.icon}
@@ -341,6 +367,11 @@ export default function AdminSkills() {
             <h3 style={{ ...styles.title, marginBottom: '20px' }}>
               {skillModal.mode === 'edit' ? 'Edit Skill' : 'Create Skill'}
             </h3>
+            {errorMsg && (
+              <div style={{ color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', padding: '10px', backgroundColor: '#ef444411', border: '1px solid #ef4444', borderRadius: '4px', marginBottom: '20px' }}>
+                [!] ERROR: {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleSkillSave}>
               <FormField label="Skill Name">
                 <input

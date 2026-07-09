@@ -109,6 +109,7 @@ export default function AdminShowcases() {
   // Modal & Dialog state
   const [modal, setModal] = useState({ open: false, mode: 'create', data: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, target: null });
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Form states
   const [form, setForm] = useState({
@@ -169,6 +170,7 @@ export default function AdminShowcases() {
       order: showcases.length + 1,
     });
     setDiagram(null);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'create', data: null });
   };
 
@@ -184,6 +186,7 @@ export default function AdminShowcases() {
       order: sc.order || 0,
     });
     setDiagram(null);
+    setErrorMsg(null);
     setModal({ open: true, mode: 'edit', data: sc });
   };
 
@@ -191,7 +194,8 @@ export default function AdminShowcases() {
     e.preventDefault();
     const isEdit = modal.mode === 'edit';
     const url = isEdit ? `/api/admin/showcases/${modal.data.id}/` : '/api/admin/showcases/';
-    const method = isEdit ? 'put' : 'post';
+    const method = isEdit ? 'patch' : 'post';
+    setErrorMsg(null);
 
     try {
       const formData = new FormData();
@@ -214,9 +218,16 @@ export default function AdminShowcases() {
       if (res.ok) {
         setModal({ open: false, mode: 'create', data: null });
         loadShowcases();
+      } else {
+        const errData = await res.json();
+        const msg = Object.entries(errData)
+          .map(([f, msgs]) => `${f}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join(' | ');
+        setErrorMsg(msg);
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('VCS / network connection failed.');
     }
   };
 
@@ -266,6 +277,11 @@ export default function AdminShowcases() {
             <h3 style={{ ...styles.title, marginBottom: '20px' }}>
               {modal.mode === 'edit' ? 'Edit Showcase' : 'Create Showcase'}
             </h3>
+            {errorMsg && (
+              <div style={{ color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', padding: '10px', backgroundColor: '#ef444411', border: '1px solid #ef4444', borderRadius: '4px', marginBottom: '20px' }}>
+                [!] ERROR: {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <FormField label="Showcase Title">
                 <input

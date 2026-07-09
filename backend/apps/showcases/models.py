@@ -4,7 +4,7 @@ from django.utils.text import slugify
 
 class Showcase(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
     description = models.TextField()
     diagram_image = models.ImageField(upload_to='showcases/', blank=True)
     technologies = models.JSONField(default=list)

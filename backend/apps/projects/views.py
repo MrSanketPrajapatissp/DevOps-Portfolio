@@ -30,11 +30,25 @@ class AdminProjectListCreateView(generics.ListCreateAPIView):
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("CREATE VALIDATION ERRORS:", serializer.errors)
+        return super().create(request, *args, **kwargs)
+
 
 class AdminProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if not serializer.is_valid():
+            print("UPDATE VALIDATION ERRORS:", serializer.errors)
+        return super().update(request, *args, **kwargs)
 
 
 class AdminProjectResyncView(APIView):
