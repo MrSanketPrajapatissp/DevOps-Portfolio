@@ -1,0 +1,85 @@
+{
+  "family": "portfolio-backend",
+  "executionRoleArn": "arn:aws:iam::231101979896:role/portfolio-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::231101979896:role/portfolio-ecs-task-role",
+  "containerDefinitions": [
+    {
+      "name": "portfolio-backend",
+      "image": "<IMAGE1_NAME>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "False"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "value": "*"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "AWS_STORAGE_BUCKET_NAME",
+          "value": "portfolio-media-231101979896"
+        },
+        {
+          "name": "AWS_S3_REGION_NAME",
+          "value": "ap-south-1"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "value": "http://localhost:3000,http://portfolio-alb-1707378420.ap-south-1.elb.amazonaws.com,https://portfolio.sanketdevs.online"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/SECRET_KEY"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/DB_NAME"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/DB_USER"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/DB_PASSWORD"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/DB_HOST"
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "valueFrom": "arn:aws:ssm:ap-south-1:231101979896:parameter/portfolio/GITHUB_TOKEN"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/portfolio-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "memory": "1024"
+}

@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.env*.local
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+buildspec.yml
+taskdef-*.json
+appspec-*.yaml

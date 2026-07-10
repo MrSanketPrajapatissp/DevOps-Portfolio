@@ -1,0 +1,51 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPO_BE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/portfolio-backend
+      - REPO_FE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/portfolio-frontend
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:-latest}
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Backend Docker image...
+      - docker build -t $REPO_BE:latest -t $REPO_BE:$IMAGE_TAG ./backend
+      - echo Building the Frontend Docker image...
+      - docker build --build-arg NEXT_PUBLIC_API_URL="" -t $REPO_FE:latest -t $REPO_FE:$IMAGE_TAG ./frontend
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images to ECR...
+      - docker push $REPO_BE:latest
+      - docker push $REPO_BE:$IMAGE_TAG
+      - docker push $REPO_FE:latest
+      - docker push $REPO_FE:$IMAGE_TAG
+      - echo Generating imagedefinitions.json files for ECS Rolling Update...
+      
+      # Prepare deployment artifacts directory for backend
+      - mkdir -p backend-deploy
+      - echo "[{\"name\":\"portfolio-backend\",\"imageUri\":\"$REPO_BE:$IMAGE_TAG\"}]" > backend-deploy/imagedefinitions.json
+      
+      # Prepare deployment artifacts directory for frontend
+      - mkdir -p frontend-deploy
+      - echo "[{\"name\":\"portfolio-frontend\",\"imageUri\":\"$REPO_FE:$IMAGE_TAG\"}]" > frontend-deploy/imagedefinitions.json
+      
+      - echo Build and artifact preparation complete.
+
+artifacts:
+  secondary-artifacts:
+    BackendArtifact:
+      files:
+        - imagedefinitions.json
+      base-directory: backend-deploy
+    FrontendArtifact:
+      files:
+        - imagedefinitions.json
+      base-directory: frontend-deploy
