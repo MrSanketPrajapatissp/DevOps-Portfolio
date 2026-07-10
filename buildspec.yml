@@ -40,12 +40,6 @@ phases:
       - echo Build and artifact preparation complete.
 
 artifacts:
-  secondary-artifacts:
-    BackendArtifact:
-      files:
-        - imagedefinitions.json
-      base-directory: backend-deploy
-    FrontendArtifact:
-      files:
-        - imagedefinitions.json
-      base-directory: frontend-deploy
+  files:
+    - backend-deploy/imagedefinitions.json
+    - frontend-deploy/imagedefinitions.json
