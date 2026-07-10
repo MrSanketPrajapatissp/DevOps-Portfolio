@@ -45,6 +45,8 @@ phases:
       - echo Build and artifact preparation complete.
 
 artifacts:
+  files:
+    - '**/*'
   secondary-artifacts:
     BackendArtifact:
       files:
