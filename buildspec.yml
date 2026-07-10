@@ -34,11 +34,14 @@ phases:
       - docker push $REPO_FE:$IMAGE_TAG
       - echo Generating imagedefinitions.json files for ECS Rolling Update...
       
-      # Prepare deployment artifacts directory for backend
-      - mkdir -p backend-deploy
-      - echo "[{\"name\":\"portfolio-backend\",\"imageUri\":\"$REPO_BE:$IMAGE_TAG\"}]" > backend-deploy/imagedefinitions.json
+      # Primary artifact imagedefinitions.json (at the root) for backend
+      - echo "[{\"name\":\"portfolio-backend\",\"imageUri\":\"$REPO_BE:$IMAGE_TAG\"}]" > imagedefinitions.json
       
-      # Prepare deployment artifacts directory for frontend
+      # Prepare deployment artifacts directory for backend (secondary-artifact)
+      - mkdir -p backend-deploy
+      - cp imagedefinitions.json backend-deploy/imagedefinitions.json
+      
+      # Prepare deployment artifacts directory for frontend (secondary-artifact)
       - mkdir -p frontend-deploy
       - echo "[{\"name\":\"portfolio-frontend\",\"imageUri\":\"$REPO_FE:$IMAGE_TAG\"}]" > frontend-deploy/imagedefinitions.json
       
@@ -46,7 +49,7 @@ phases:
 
 artifacts:
   files:
-    - '**/*'
+    - imagedefinitions.json
   secondary-artifacts:
     BackendArtifact:
       files:
