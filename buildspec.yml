@@ -1,13 +1,15 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_ACCOUNT_ID: "231101979896"
+    AWS_DEFAULT_REGION: "ap-south-1"
+
 phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
       - aws --version
-      # Retrieve AWS Account ID dynamically from the build environment
-      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - echo AWS Account ID is $AWS_ACCOUNT_ID
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPO_BE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/portfolio-backend
       - REPO_FE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/portfolio-frontend
