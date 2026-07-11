@@ -5,191 +5,231 @@
 [![Next.js](https://img.shields.io/badge/Next.js-Standalone-black?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
 [![Django](https://img.shields.io/badge/Django-REST_Framework-green?style=flat-square&logo=django)](https://www.djangoproject.com/)
 [![PostgreSQL](https://img.shields.io/badge/RDS-PostgreSQL-blue?style=flat-square&logo=postgresql)](https://aws.amazon.com/rds/)
+[![Live](https://img.shields.io/badge/Live-portfolio.sanketdevs.online-cyan?style=flat-square&logo=google-chrome)](https://portfolio.sanketdevs.online)
 
-An enterprise-grade, high-availability monitoring and control dashboard portfolio platform deployed on **AWS ECS Fargate** using a fully automated **AWS CodePipeline CI/CD** rolling deployment strategy. 
-
-This platform represents a modern 3-tier web architecture designed with security-first VPC isolation, least-privilege IAM controls, and secure externalized secrets management.
+> An enterprise-grade, high-availability monitoring and control dashboard portfolio platform deployed on **AWS ECS Fargate** with a fully automated **AWS CodePipeline CI/CD** rolling deployment strategy, custom domain SSL via **AWS Certificate Manager (ACM)**, and secure externalized secrets management via **SSM Parameter Store**.
 
 ---
 
-## 🏗️ 1. Architecture Specification
+## 🏗️ System Architecture
 
-The system is deployed within a custom, secure Virtual Private Cloud (VPC) spanning multiple Availability Zones (AZs) for high availability and fault tolerance.
+<!-- Architecture diagram will be added here -->
+<!-- ![System Architecture](./docs/screenshots/architecture_diagram.gif) -->
 
-```mermaid
-graph TD
-    User([Internet Users]) -->|HTTP/HTTPS Port 80/443| ALB[Application Load Balancer]
-    
-    subgraph VPC [AWS Custom VPC: 10.0.0.0/16]
-        subgraph PublicSubnets [Public Subnets: ap-south-1a & 1b]
-            ALB
-        end
-        
-        subgraph PrivateSubnets [Private Subnets: ap-south-1a & 1b]
-            direction TB
-            subgraph ECSCluster [ECS Fargate Cluster]
-                FE_Task[Frontend Task: Next.js standalone on port 3000]
-                BE_Task[Backend Task: Django + Gunicorn on port 8000]
-            end
-            
-            subgraph DBSubnetGroup [Isolated DB Subnet]
-                RDS[(Aurora Serverless v2 PostgreSQL)]
-            end
-        end
-        
-        subgraph SecurityGroups [Security Groups Boundary]
-            ALB_SG[ALB SG: Ingress port 80/443, Egress to App SGs]
-            FE_SG[Frontend SG: Ingress port 3000 from ALB, Egress to ECR/CloudWatch]
-            BE_SG[Backend SG: Ingress port 8000 from ALB, Egress to RDS/S3]
-            DB_SG[DB SG: Ingress port 5432 from Backend SG only]
-        end
-    end
-    
-    subgraph Storage [AWS Storage & Secrets]
-        S3[(Amazon S3: Static & Media Buckets)]
-        SSM[(SSM Parameter Store: DB Credentials & Secrets)]
-        ECR[(Amazon ECR: Docker Registries)]
-    end
-    
-    subgraph CI_CD [CI/CD Deployment Pipeline]
-        GitHub[GitHub Repo] -->|Webhook| CodePipeline[AWS CodePipeline]
-        CodePipeline -->|Trigger| CodeBuild[AWS CodeBuild]
-        CodeBuild -->|Push Images| ECR
-        CodeBuild -->|Artifacts| ECS_Deploy[ECS Rolling Deploy]
-        ECS_Deploy -->|Update Service| FE_Task
-        ECS_Deploy -->|Update Service| BE_Task
-    end
+---
 
-    %% Access flows
-    ALB -->|Route / | FE_Task
-    ALB -->|Route /api/ | BE_Task
-    BE_Task -->|Query SQL| RDS
-    BE_Task -->|Retrieve Secrets| SSM
-    BE_Task -->|Store Assets| S3
-    FE_Task -->|API Comms| ALB
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Next.js 14 (Standalone) | Server-rendered React application with App Router |
+| **Backend** | Django REST Framework 4.2 | RESTful API server with JWT authentication |
+| **WSGI Server** | Gunicorn | Production-grade Python WSGI HTTP server |
+| **Database** | AWS RDS Aurora Serverless v2 (PostgreSQL) | Managed, scalable relational database |
+| **Static Storage** | Amazon S3 | Static files & media asset storage |
+| **Container Registry** | Amazon ECR | Private Docker image repository |
+| **Orchestration** | AWS ECS Fargate | Serverless container orchestration |
+| **Load Balancer** | AWS ALB | Path-based routing with HTTPS termination |
+| **SSL/TLS** | AWS Certificate Manager (ACM) | Managed SSL certificate for `portfolio.sanketdevs.online` |
+| **DNS** | BigRock (External Registrar) | Domain management with CNAME validation for ACM |
+| **Secrets** | AWS SSM Parameter Store | Encrypted credential injection at container boot |
+| **Logging** | AWS CloudWatch Logs | Centralized container log aggregation |
+| **CI/CD** | AWS CodePipeline + CodeBuild | Automated build, test, and deploy pipeline |
+
+---
+
+## ⚙️ Infrastructure Deep Dive
+
+### 1. Networking & VPC Architecture
+The application runs inside a custom **AWS VPC (10.0.0.0/16)** spanning **2 Availability Zones** (`ap-south-1a` and `ap-south-1b`) for fault tolerance:
+- **2 Public Subnets**: Host the internet-facing Application Load Balancer.
+- **2 Private Subnets**: Host the ECS Fargate container tasks (no direct internet exposure).
+- **Isolated DB Subnets**: Host the RDS Aurora PostgreSQL instance, accessible only from the backend security group.
+
+### 2. Security Groups (Least-Privilege Firewall Rules)
+| Security Group | Ingress Rule | Source |
+|----------------|-------------|--------|
+| `ALB-SG` | Port 80 (HTTP), Port 443 (HTTPS) | `0.0.0.0/0` (Internet) |
+| `Frontend-SG` | Port 3000 | `ALB-SG` only |
+| `Backend-SG` | Port 8000 | `ALB-SG` only |
+| `DB-SG` | Port 5432 | `Backend-SG` only |
+
+### 3. SSL/TLS & Custom Domain
+The domain **`portfolio.sanketdevs.online`** is registered on **BigRock** (external DNS registrar). SSL is managed using **AWS Certificate Manager (ACM)**:
+- An ACM public certificate was requested for `portfolio.sanketdevs.online`.
+- DNS validation was completed by adding the ACM-provided **CNAME records** in the BigRock DNS management panel.
+- The issued certificate is attached to the ALB **HTTPS:443** listener, enabling end-to-end encrypted traffic.
+
+#### 📸 ACM Certificate — Issued & Active
+![ACM Certificate Issued for portfolio.sanketdevs.online](./docs/screenshots/Screenshot%20(1150).png)
+
+### 4. Application Load Balancer (ALB) — Path-Based Routing
+The ALB dynamically routes incoming requests based on URL paths:
+- **`/`** → Forwarded to `portfolio-tg-fe-blue-ip` (Next.js Frontend on Port 3000)
+- **`/api/*`** → Forwarded to `portfolio-tg-be-blue-ip` (Django Backend on Port 8000)
+- **HTTP:80** → Automatically redirects to **HTTPS:443** (HTTP 301)
+
+#### 📸 Application Load Balancer — Active with HTTPS Listener
+![ALB Active with Listeners](./docs/screenshots/Screenshot%20(1149).png)
+
+---
+
+## 🔒 Secrets Management
+
+All sensitive environment variables are externalized from source code and securely stored in **AWS Systems Manager (SSM) Parameter Store**. ECS task definitions reference these parameters at container launch:
+
+| Parameter Path | Type | Purpose |
+|----------------|------|---------|
+| `/portfolio/DB_HOST` | String | RDS Aurora endpoint hostname |
+| `/portfolio/DB_NAME` | String | PostgreSQL database name |
+| `/portfolio/DB_USER` | String | Database username |
+| `/portfolio/DB_PASSWORD` | SecureString | Database password (KMS encrypted) |
+| `/portfolio/SECRET_KEY` | SecureString | Django cryptographic signing key |
+| `/portfolio/GITHUB_TOKEN` | SecureString | GitHub API token for repo sync |
+| `/portfolio/AWS_STORAGE_BUCKET_NAME` | String | S3 bucket name for assets |
+
+#### 📸 SSM Parameter Store — Encrypted Secrets
+![SSM Parameter Store](./docs/screenshots/Screenshot%20(1147).png)
+
+---
+
+## 🐳 Containerization & ECR
+
+Both the frontend and backend are packaged as optimized, multi-stage Docker images:
+
+| Image | Base | Size Optimization | Port |
+|-------|------|-------------------|------|
+| `portfolio-frontend` | `node:20-alpine` | Next.js standalone output mode | 3000 |
+| `portfolio-backend` | `python:3.11-slim` | Multi-stage pip install + slim runtime | 8000 |
+
+Images are pushed to **Amazon Elastic Container Registry (ECR)** with both `latest` and git commit hash tags for versioning and rollback traceability.
+
+#### 📸 Amazon ECR — Private Repositories
+![ECR Private Repositories](./docs/screenshots/Screenshot%20(1148).png)
+
+---
+
+## 🚀 ECS Fargate Cluster — Serverless Containers
+
+The application runs on **AWS ECS Fargate** (serverless compute), eliminating the need to manage EC2 instances:
+- **Cluster**: `portfolio-cluster` (Active)
+- **Services**: 2 Active (`portfolio-frontend-service`, `portfolio-backend-service`)
+- **Tasks**: 2 Running, 0 Pending
+- **Deployment Strategy**: ECS Rolling Update (Zero-Downtime)
+  - `minimumHealthyPercent: 100%` — Old tasks stay alive until new ones pass health checks.
+  - `maximumPercent: 200%` — New tasks are provisioned alongside old ones during deployment.
+
+#### 📸 ECS Cluster — 2 Active Services, 2 Running Tasks
+![ECS Fargate Cluster](./docs/screenshots/Screenshot%20(1146).png)
+
+---
+
+## 🔄 CI/CD Pipeline — Fully Automated Delivery
+
+The entire build and deployment lifecycle is automated using a **3-stage AWS CodePipeline**:
+
+```
+┌──────────┐     ┌──────────┐     ┌──────────────────────────┐
+│  Source   │────▶│  Build   │────▶│        Deploy            │
+│  GitHub   │     │ CodeBuild│     │ ┌────────────────────┐   │
+│  (main)   │     │          │     │ │ DeployFrontend ✅  │   │
+│           │     │ Docker   │     │ │ (Amazon ECS)       │   │
+│  Webhook  │     │ Build +  │     │ ├────────────────────┤   │
+│  Trigger  │     │ ECR Push │     │ │ Deploy (Backend) ✅│   │
+│           │     │          │     │ │ (Amazon ECS)       │   │
+└──────────┘     └──────────┘     │ └────────────────────┘   │
+                                  └──────────────────────────┘
 ```
 
-### Infrastructure Details:
-* **Networking**: A Custom VPC with 2 Public Subnets (fronted by the Application Load Balancer) and 2 Private Subnets (hosting ECS Fargate container instances).
-* **Load Balancing**: An AWS Application Load Balancer (ALB) dynamically routes incoming requests based on paths:
-  * `/` and frontend routes are forwarded to the **Next.js frontend target group** on port `3000`.
-  * `/api/`, `/admin/`, and backend assets are forwarded to the **Django backend target group** on port `8000`.
-* **Database**: AWS RDS Aurora Serverless v2 (PostgreSQL) hosted in dedicated isolated database subnet groups, restricting ingress access to the Django backend security group.
-* **Asset Storage**: Static and media assets are stored securely on Amazon S3. In compliance with modern AWS security frameworks, S3 Object Ownership is set to **Bucket Owner Enforced** (disabling legacy public ACLs).
+### Pipeline Stages:
+1. **Source**: GitHub webhook triggers pipeline on every push to `main` branch.
+2. **Build**: AWS CodeBuild authenticates to ECR, builds both Docker images, tags with commit hash, pushes to ECR, and outputs `imagedefinitions.json` artifacts.
+3. **Deploy**: Two parallel ECS deploy actions update the frontend and backend services using rolling update strategy.
+
+#### 📸 CodePipeline — All Stages Successful (100% Green)
+![CodePipeline All Green](./docs/screenshots/Screenshot%20(1152).png)
+
+#### 📸 CodePipeline — Deploy Stage In Progress
+![CodePipeline Deploy In Progress](./docs/screenshots/Screenshot%20(1151).png)
 
 ---
 
-## 🔒 2. Security & Credentials Architecture
+## 🌐 Live Application
 
-### AWS Systems Manager (SSM) Parameter Store
-All sensitive operational environment variables are externalized from the code repository. Task definitions retrieve configurations at launch from encrypted parameters using AWS Key Management Service (KMS):
-* `/portfolio/DB_HOST` — RDS DB Hostname
-* `/portfolio/DB_NAME` — RDS Database Name (`postgres`)
-* `/portfolio/DB_USER` — Database Username
-* `/portfolio/DB_PASSWORD` — Database Password (SecureString)
-* `/portfolio/SECRET_KEY` — Django Cryptographic Secret Key (SecureString)
-* `/portfolio/AWS_STORAGE_BUCKET_NAME` — S3 Asset Bucket Name
+The application is live at **[https://portfolio.sanketdevs.online](https://portfolio.sanketdevs.online)**
 
-### Least-Privilege IAM Roles
-The ECS Fargate tasks run using two distinct IAM roles:
-1. **ECS Task Execution Role (`portfolio-ecs-execution-role`)**: Grants the ECS Agent permission to pull container images from Amazon ECR, write system logs to CloudWatch logs, and decrypt secrets from SSM Parameter Store at container boot.
-2. **ECS Task Role (`portfolio-ecs-task-role`)**: Grants the running Django container permission to perform operations on AWS S3 (PutObject, GetObject) to read and write application media files.
+### Public Dashboard (Terminal-Themed UI)
+A DevOps monitoring control dashboard with a terminal boot sequence, system modules panel, and real-time status indicators:
+
+#### 📸 Portfolio Dashboard — Live Production
+![Portfolio Live UI](./docs/screenshots/Screenshot%20(1137).png)
+
+### Admin Panel (Content Management System)
+A full-featured admin panel for managing portfolio content (projects, skills, certifications, experience, social links, resume, and contact messages):
+
+#### 📸 Admin Panel — System Overview
+![Admin Panel Dashboard](./docs/screenshots/Screenshot%20(1138).png)
 
 ---
 
-## 🔄 3. Continuous Delivery & Deployment Pipeline
+## 💻 Local Development Setup
 
-The delivery workflow uses a single **AWS CodePipeline** with three structured stages:
+### Prerequisites
+- Docker & Docker Compose
+- Node.js v20+
+- Python v3.11+
+
+### Quick Start
+```bash
+# Clone the repository
+git clone https://github.com/MrSanketPrajapatissp/DevOps-Portfolio.git
+cd DevOps-Portfolio
+
+# Start backend
+cd backend
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+
+# Start frontend (new terminal)
+cd ../frontend
+npm install
+npm run dev
+```
+
+Access the application at `http://localhost:3000`. Admin panel at `/admin-portal`.
+
+---
+
+## 📂 Repository Structure
 
 ```
-[GitHub Source] ──> [AWS CodeBuild] ──> [Amazon ECR] ──> [ECS Fargate Rolling Update]
+DevOps-Portfolio/
+├── backend/                    # Django REST Framework API
+│   ├── Dockerfile              # Multi-stage Python 3.11-slim build
+│   ├── entrypoint.sh           # DB wait → migrate → collectstatic → gunicorn
+│   ├── gunicorn.conf.py        # Production WSGI server config
+│   ├── portfolio/settings.py   # Dynamic DB/S3/CORS configuration
+│   └── requirements.txt        # Python dependencies
+├── frontend/                   # Next.js 14 App Router
+│   ├── Dockerfile              # Multi-stage Node 20-alpine build
+│   ├── next.config.mjs         # Standalone output mode
+│   ├── app/                    # Pages and layouts
+│   ├── components/             # Reusable UI components
+│   └── lib/                    # API client & utilities
+├── buildspec.yml               # AWS CodeBuild specification
+├── taskdef-backend.json        # ECS Task Definition template (backend)
+├── taskdef-frontend.json       # ECS Task Definition template (frontend)
+├── appspec-backend.yaml        # CodeDeploy app spec (backend)
+├── appspec-frontend.yaml       # CodeDeploy app spec (frontend)
+└── docs/screenshots/           # AWS Console proof screenshots
 ```
 
-### Step 1: Source Stage
-* Tracked via a GitHub Webhook on the `main` branch. Any push triggers a CodePipeline execution.
-
-### Step 2: Build Stage (AWS CodeBuild)
-* CodeBuild pulls the source code, authenticates against Amazon ECR, and builds highly optimized production container images:
-  * **Frontend**: Next.js compiled in `standalone` output mode (Node 20-alpine base image).
-  * **Backend**: Django REST Framework serving requests via Gunicorn (Python 3.11-slim base image).
-* Images are tagged with the specific git commit hash and pushed to ECR.
-* CodeBuild generates the primary artifact `BuildArtifact` containing:
-  * `imagedefinitions.json` (at the root) for the backend service.
-  * `frontend-deploy/imagedefinitions.json` for the frontend service.
-
-### Step 3: Deploy Stage (ECS Rolling Update)
-* Deploys the images using the **ECS Native Rolling Deployment** model to guarantee **Zero-Downtime**:
-  * **Minimum Healthy Percent (100%)**: Guarantees that at least one healthy instance of each service remains active and serves users during deployment.
-  * **Maximum Percent (200%)**: Allows ECS to provision the new containers and wait for ALB health checks to pass **before** terminating the old tasks.
-
 ---
 
-## 🚀 4. Step-by-Step Provisioning & Deploy Runbook
-
-Follow this runbook to deploy the entire stack from scratch:
-
-### Step 1: Networking & Security Group Setup
-1. Create a custom VPC with 2 public subnets and 2 private subnets across two AZs.
-2. Create four security groups:
-   * `ALB-SG`: Ingress HTTP (80) & HTTPS (443) from `0.0.0.0/0`.
-   * `Frontend-SG`: Ingress port `3000` from `ALB-SG` security group.
-   * `Backend-SG`: Ingress port `8000` from `ALB-SG` security group.
-   * `DB-SG`: Ingress port `5432` from `Backend-SG` security group only.
-
-### Step 2: Provision Database & Storage
-1. Create an Amazon S3 Bucket for static and media assets. Ensure public block access is configured and S3 Object Ownership is set to **Bucket Owner Enforced**.
-2. Provision an AWS Aurora PostgreSQL Serverless v2 instance inside the private database subnets, associated with the `DB-SG` security group.
-
-### Step 3: Configure SSM Parameter Store
-1. Open the Systems Manager console and navigate to **Parameter Store**.
-2. Add all parameters under the `/portfolio/` namespace:
-   * `/portfolio/DB_HOST` (String)
-   * `/portfolio/DB_NAME` (String, default `postgres`)
-   * `/portfolio/DB_USER` (String)
-   * `/portfolio/DB_PASSWORD` (SecureString)
-   * `/portfolio/SECRET_KEY` (SecureString)
-   * `/portfolio/AWS_STORAGE_BUCKET_NAME` (String)
-
-### Step 4: Configure IAM Roles
-1. Create `portfolio-ecs-execution-role` with `AmazonECSTaskExecutionRolePolicy` attached. Add custom permissions allowing `ssm:GetParameters` and `kms:Decrypt` for the Parameter Store resources.
-2. Create `portfolio-ecs-task-role` with custom S3 permissions (`s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`) scoped to your S3 bucket.
-3. **Important**: Verify both roles have `ecs-tasks.amazonaws.com` in their Trust Relationship policy.
-
-### Step 5: Register ECS Task Definitions & Services
-1. Create a log group named `/ecs/portfolio-frontend` and `/ecs/portfolio-backend` in CloudWatch Logs.
-2. Register the task definitions for the frontend and backend using `taskdef-frontend.json` and `taskdef-backend.json` as templates. Map variables to the SSM Parameters.
-3. Create the ECS Fargate Service for both frontend and backend on your cluster, choosing **ECS Rolling Update** deployment controller.
-
-### Step 6: Deploy CodePipeline
-1. Create an ECR repository for `portfolio-frontend` and `portfolio-backend`.
-2. Connect CodePipeline to your GitHub repository.
-3. Configure AWS CodeBuild using the provided `buildspec.yml` to compile the Docker containers and output `BuildArtifact`.
-4. Configure the Deploy stage with two Amazon ECS actions:
-   * **`DeployFrontend`**: Pointing to the frontend service, using `BuildArtifact` as input and `frontend-deploy/imagedefinitions.json` as the image definitions file.
-   * **`Deploy`**: Pointing to the backend service, using `BuildArtifact` as input and `imagedefinitions.json` as the image definitions file.
-
----
-
-## 📈 5. Proof of Successful Deployment
-
-The following screenshots from the AWS management console confirm the healthy, zero-downtime working state of the architecture:
-
-### 1. CodePipeline Delivery Pipeline
-Status of the 3-stage continuous integration and delivery pipeline showing **Source -> Build -> Deploy** fully completed and successful:
-![CodePipeline Success Pipeline](./docs/screenshots/01_codepipeline_success.png)
-
-### 2. ECS Fargate Cluster Tasks Running
-Confirmation of active, running container tasks across multiple Availability Zones on the ECS Fargate cluster:
-![ECS Fargate Running Tasks](./docs/screenshots/02_ecs_running_tasks.png)
-
-### 3. Application Load Balancer Healthy Targets
-ALB target groups indicating that both Next.js and Django Gunicorn containers are passing HTTP health checks:
-![ALB Target Group Health](./docs/screenshots/03_target_groups_healthy.png)
-
-### 4. AWS Systems Manager Parameter Store
-Encrypted credentials and configuration variables safely stored in the Systems Manager Parameter Store:
-![SSM Parameter Store](./docs/screenshots/04_ssm_parameter_store.png)
-
-### 5. Production Application UI
-The live dashboard application rendering and communicating with the Django API backend over the Load Balancer DNS:
-![Live Application Dashboard UI](./docs/screenshots/05_portfolio_frontend_ui.png)
+<p align="center">
+  <b>Built with ❤️ by <a href="https://github.com/MrSanketPrajapatissp">Sanket Prajapati</a></b><br>
+  <i>AWS DevOps Engineer | Cloud Infrastructure | CI/CD Automation</i>
+</p>
